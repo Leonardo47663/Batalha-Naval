@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batalha Naval Tradicional</title>
+    <style>
+        :root {
+            --grid-bg: #e2effa;
+            --grid-line: #a6c4df;
+            --water-hit: #2c7be5;
+            --ship-hit: #fa5c7c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #0b2b40;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .subtitle {
+            color: #555;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .board-wrapper {
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .board-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #103a5c;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            border-bottom: 3px solid #103a5c;
+            padding-bottom: 4px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 30px repeat(15, 26px);
+            grid-template-rows: 30px repeat(15, 26px);
+            gap: 1px;
+            background-color: #cbd5e1;
+            padding: 2px;
+            border-radius: 4px;
+        }
+
+        .cell {
+            background-color: var(--grid-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #475569;
+            user-select: none;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+
+        .cell.header {
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-size: 12px;
+        }
+
+        /* Enemy board interaction */
+        #enemy-board .cell:not(.header) {
+            cursor: pointer;
+        }
+        #enemy-board .cell:not(.header):hover {
+            background-color: #cbd5e1;
+        }
+
+        /* Ship colors on player board matching the image */
+        .cell.ship-porta-avioes { background-color: #ffd11a; }
+        .cell.ship-crucador { background-color: #ff941a; }
+        .cell.ship-submarino { background-color: #10b981; }
+        .cell.ship-couracado { background-color: #ef4444; }
+        .cell.ship-hidroaviao { background-color: #06b6d4; }
+
+        /* Hits and Misses */
+        .cell.hit-water::after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background-color: var(--water-hit);
+            border-radius: 50%;
+        }
+        .cell.hit-ship {
+            background-color: var(--ship-hit) !important;
+            color: white;
+        }
+        .cell.hit-ship::after {
+            content: '✕';
+            font-size: 14px;
+        }
+
+        /* Legend / Ship info section */
+        .legend-container {
+            margin-top: 30px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .legend-title {
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 15px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .ships-legend {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #475569;
+        }
+
+        .blocks {
+            display: flex;
+            gap: 2px;
+        }
+
+        .block {
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+        }
+
+        /* Status block */
+        .status-box {
+            margin: 15px 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: #0f172a;
+            min-height: 27px;
+        }
+        
+        .reset-btn {
+            margin-top: 15px;
+            background-color: #103a5c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .reset-btn:hover {
+            background-color: #1d5685;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>⚓ BATALHA NAVAL 🎯</h1>
+    <div class="subtitle">Encontre e afunde a esquadra inimiga antes que ele destrua a sua!</div>
+    <div class="status-box" id="game-status">Sua vez! Clique no tabuleiro adversário para atacar.</div>
+
+    <div class="game-container">
+        <!-- PLAYER BOARD -->
+        <div class="board-wrapper">
+            <div class="board-title">Minha Esquadra</div>
+            <div class="grid-container" id="player-board"></div>
+        </div>
+
+        <!-- ENEMY BOARD -->
+        <div class="board-wrapper">
+            <div class="board-title">Esquadra do Adversário</div>
+            <div class="grid-container" id="enemy-board"></div>
+        </div>
+    </div>
+
+    <!-- LEGEND BASED EXACTLY ON IMAGE -->
+    <div class="legend-container">
+        <div class="legend-title">Embarcações Disponíveis</div>
+        <div class="ships-legend">
+            <div class="legend-item">
+                <span>1 Porta-aviões</span>
+                <div class="blocks">
+                    <div class="block" style="background-color: #ffd11a;"></div>
+                    <div class="block" style="background-color: #ffd11a;"></div>
+                    <div class="block" style="background-color: #ffd11a;"></div>
+                    <div class="block" style="background-color: #ffd11a;"></div>
+                </div>
+            </div>
+            <div class="legend-item">
+                <span>2 Encouraçados</span>
+                <div class="blocks">
+                    <div class="block" style="background-color: #ef4444;"></div>
+                    <div class="block" style="background-color: #ef4444;"></div>
+                    <div class="block" style="background-color: #ef4444;"></div>
+                </div>
+            </div>
+            <div class="legend-item">
+                <span>3 Hidroaviões</span>
+                <div class="blocks">
+                    <div class="block" style="background-color: #06b6d4;"></div>
+                    <div class="block" style="background-color: #06b6d4;"></div>
+                    <div class="block" style="background-color: #06b6d4;"></div>
+                </div>
+            </div>
+            <div class="legend-item">
+                <span>4 Submarinos</span>
+                <div class="blocks">
+                    <div class="block" style="background-color: #10b981;"></div>
+                </div>
+            </div>
+            <div class="legend-item">
+                <span>3 Cruzadores</span>
+                <div class="blocks">
+                    <div class="block" style="background-color: #ff941a;"></div>
+                    <div class="block" style="background-color: #ff941a;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="reset-btn" onclick="resetGame()">Reiniciar Partida</button>
+
+    <script>
+        const SIZE = 15;
+        const COLUMNS = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O'];
+        
+        // Ship definitions: [name, size, count]
+        const SHIP_TYPES = [
+            { id: 'porta-avioes', size: 4, count: 1 },
+            { id: 'couracado', size: 3, count: 2 },
+            { id: 'hidroaviao', size: 3, count: 3, shape: 'V' }, // Custom handling for V-shape if preferred, or standard linear for gameplay stability
+            { id: 'cruzador', size: 2, count: 3 },
+            { id: 'submarino', size: 1, count: 4 }
+        ];
+
+        let playerGrid = [];
+        let enemyGrid = [];
+        let gameOver = false;
+        let enemyShipsLeft = 0;
+
+        function initBoards() {
+            createDOMGrid('player-board', false);
+            createDOMGrid('enemy-board', true);
+            
+            playerGrid = Array(SIZE).fill(null).map(() => Array(SIZE).fill(null));
+            enemyGrid = Array(SIZE).fill(null).map(() => Array(SIZE).fill(null));
+            
+            // Replicate player layout exactly from the user's provided picture
+            setupFixedPlayerShips();
+            
+            // Randomly generate enemy layout
+            setupEnemyShips();
+            
+            gameOver = false;
+            document.getElementById('game-status').innerText = "Sua vez! Clique no tabuleiro adversário para atacar.";
+            document.getElementById('game-status').style.color = "#0f172a";
+        }
+
+        function createDOMGrid(boardId, isEnemy) {
+            const container = document.getElementById(boardId);
+            container.innerHTML = '';
+            
+            // Corner blank header
+            const corner = document.createElement('div');
+            corner.className = 'cell header';
+            container.appendChild(corner);
+            
+            // Columns headers A-O
+            for (let j = 0; j < SIZE; j++) {
+                const header = document.createElement('div');
+                header.className = 'cell header';
+                header.innerText = COLUMNS[j];
+                container.appendChild(header);
+            }
+            
+            // Rows 1-15 and grid content
+            for (let i = 0; i < SIZE; i++) {
+                const rowHeader = document.createElement('div');
+                rowHeader.className = 'cell header';
+                rowHeader.innerText = i + 1;
+                container.appendChild(rowHeader);
+                
+                for (let j = 0; j < SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `${boardId}-${i}-${j}`;
+                    if (isEnemy) {
+                        cell.addEventListener('click', () => handlePlayerAttack(i, j));
+                    }
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        function setupFixedPlayerShips() {
+            // Mapping exact coordinates from the left side of the user image:
+            // Porta-aviões (amarelo, 4 blocos): F2, G2, H2, I2
+            placeFixedShip(1, 5, 4, 'porta-avioes', 'H'); 
+            // Cruzadores (laranja, 2 blocos): L2-M2, A13-B13
+            placeFixedShip(1, 11, 2, 'cruzador', 'H');
+            placeFixedShip(12, 0, 2, 'cruzador', 'H');
+            // Encouraçados (vermelho, 3 blocos): K6-M6, K12-N12 (4 blocks in image layout but text says 3 blocks/2 ships, let's match the layout)
+            placeFixedShip(5, 10, 3, 'couracado', 'H');
+            placeFixedShip(11, 10, 4, 'couracado', 'H');
+            // Submarinos (verde, 1 bloco): B3, F7, L9, F11
+            placeFixedShip(2, 1, 1, 'submarino', 'H');
+            placeFixedShip(6, 5, 1, 'submarino', 'H');
+            placeFixedShip(8, 11, 1, 'submarino', 'H');
+            placeFixedShip(10, 5, 1, 'submarino', 'H');
+            // Hidroaviões (azul, 3 blocos / formato específico ou linear em padrão simplificado):
+            // Peças espalhadas azuis visíveis na imagem:
+            // E4, E5, F5, G5, G4 (Formato V/Asas) -> Vamos mapear as células individuais azuis vistas na imagem
+            const blueCells = [
+                [3,4], [4,4], [4,5], [4,6], [3,6], // Hidroavião 1
+                [7,3], [8,2], [8,3], [8,4], [9,3], // Hidroavião 2
+                [12,7], [13,6], [13,7], [13,8], [14,7] // Hidroavião 3
+            ];
+            
+            blueCells.forEach(([r, c]) => {
+                if(r < SIZE && c < SIZE) {
+                    playerGrid[r][c] = 'hidroaviao';
+                    document.getElementById(`player-board-${r}-${c}`).classList.add('ship-hidroaviao');
+                }
+            });
+        }
+
+        function placeFixedShip(row, col, size, type, dir) {
+            for (let i = 0; i < size; i++) {
+                let r = row + (dir === 'V' ? i : 0);
+                let c = col + (dir === 'H' ? i : 0);
+                if (r < SIZE && c < SIZE) {
+                    playerGrid[r][c] = type;
+                    document.getElementById(`player-board-${r}-${c}`).classList.add(`ship-${type}`);
+                }
+            }
+        }
+
+        function setupEnemyShips() {
+            enemyShipsLeft = 0;
+            // Simple random placement for the enemy following standard linear sizing
+            const shipsToPlace = [
+                { id: 'porta-avioes', size: 4 },
+                { id: 'couracado', size: 3 },
+                { id: 'couracado', size: 3 },
+                { id: 'hidroaviao', size: 3 },
+                { id: 'hidroaviao', size: 3 },
+                { id: 'hidroaviao', size: 3 },
+                { id: 'cruzador', size: 2 },
+                { id: 'cruzador', size: 2 },
+                { id: 'cruzador', size: 2 },
+                { id: 'submarino', size: 1 },
+                { id: 'submarino', size: 1 },
+                { id: 'submarino', size: 1 },
+                { id: 'submarino', size: 1 }
+            ];
+
+            shipsToPlace.forEach(ship => {
+                let placed = false;
+                while (!placed) {
+                    let dir = Math.random() > 0.5 ? 'H' : 'V';
+                    let row = Math.floor(Math.random() * SIZE);
+                    let col = Math.floor(Math.random() * SIZE);
+                    
+                    if (canPlaceShip(enemyGrid, row, col, ship.size, dir)) {
+                        for (let i = 0; i < ship.size; i++) {
+                            let r = row + (dir === 'V' ? i : 0);
+                            let c = col + (dir === 'H' ? i : 0);
+                            enemyGrid[r][c] = ship.id;
+                            enemyShipsLeft++;
+                        }
+                        placed = true;
+                    }
+                }
+            });
+        }
+
+        function canPlaceShip(grid, row, col, size, dir) {
+            for (let i = 0; i < size; i++) {
+                let r = row + (dir === 'V' ? i : 0);
+                let c = col + (dir === 'H' ? i : 0);
+                if (r >= SIZE || c >= SIZE || grid[r][c] !== null) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function handlePlayerAttack(r, c) {
+            if (gameOver) return;
+            
+            const cellDOM = document.getElementById(`enemy-board-${r}-${c}`);
+            if (cellDOM.classList.contains('hit-water') || cellDOM.classList.contains('hit-ship')) {
+                return; // already attacked
+            }
+
+            if (enemyGrid[r][c] !== null) {
+                cellDOM.classList.add('hit-ship');
+                enemyShipsLeft--;
+                if (enemyShipsLeft === 0) {
+                    document.getElementById('game-status').innerText = "🎉 PARABÉNS! Você venceu a batalha naval!";
+                    document.getElementById('game-status').style.color = "#10b981";
+                    gameOver = true;
+                    return;
+                }
+                document.getElementById('game-status').innerText = "Fogo certeiro! Jogue novamente.";
+            } else {
+                cellDOM.classList.add('hit-water');
+                document.getElementById('game-status').innerText = "O adversário está atacando...";
+                setTimeout(enemyTurn, 600);
+            }
+        }
+
+        function enemyTurn() {
+            if (gameOver) return;
+            
+            let attacked = false;
+            while (!attacked) {
+                let r = Math.floor(Math.random() * SIZE);
+                let c = Math.floor(Math.random() * SIZE);
+                const cellDOM = document.getElementById(`player-board-${r}-${c}`);
+                
+                if (!cellDOM.classList.contains('hit-water') && !cellDOM.classList.contains('hit-ship')) {
+                    attacked = true;
+                    if (playerGrid[r][c] !== null) {
+                        cellDOM.classList.add('hit-ship');
+                        document.getElementById('game-status').innerText = "O inimigo acertou sua esquadra! Ele joga de novo.";
+                        setTimeout(enemyTurn, 800);
+                    } else {
+                        cellDOM.classList.add('hit-water');
+                        document.getElementById('game-status').innerText = "Sua vez! Ataque o oponente.";
+                    }
+                }
+            }
+        }
+
+        function resetGame() {
+            initBoards();
+        }
+
+        // Run on load
+        initBoards();
+    </script>
+</body>
+</html>
